@@ -5,6 +5,48 @@ NVIDIA GPU activity while keeping a clock, stopwatch, or timer close at hand.
 It runs natively on Windows and Linux. On Windows it can also use a selected WSL
 distribution as its complete metrics source.
 
+## Running SysScope
+
+### Windows
+
+Run SysScope from native Windows PowerShell, not from inside WSL. Python 3.12+
+is required when running from source.
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -e ".[dev]"
+python -m sysscope
+```
+
+To run a packaged Windows build:
+
+```powershell
+.\dist\SysScope.exe
+```
+
+The Windows application can use the native host or a discovered WSL
+distribution as its metrics source. No SysScope GUI runs inside WSL.
+
+### Linux
+
+Python 3.12+, a graphical X11 or Wayland session, and the NVIDIA driver/NVML
+are required for GPU monitoring.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m sysscope
+```
+
+To run a packaged Linux build:
+
+```bash
+chmod +x dist/SysScope
+./dist/SysScope
+```
+
 ## Development
 
 ```bash
