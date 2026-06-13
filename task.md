@@ -98,6 +98,8 @@
 
 - [x] Add one-file PyInstaller specification.
 - [x] Add Windows and Linux GitHub Actions test jobs.
+- [x] Add native Linux and Windows distribution workflow with uploaded artifacts.
+- [x] Add Inno Setup definition for the Windows installer.
 - [x] Document that Windows and Linux artifacts require native platform builds.
 - [x] Verify Linux/WSL single-file build completes.
 - [ ] Verify native Windows build produces `dist\SysScope.exe`.

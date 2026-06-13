@@ -69,13 +69,28 @@ QT_QPA_PLATFORM=offscreen pytest
 
 ## Packaging
 
+PyInstaller builds only for the operating system where it is running; one local
+PyInstaller command cannot cross-compile both Linux and Windows. To build the
+current platform locally:
+
 ```bash
-pyinstaller SysScope.spec
+pyinstaller --clean --noconfirm SysScope.spec
 ```
 
-The generated single-file executable is placed in `dist/`. SysScope writes
-`config.json` beside the executable. During source development, it writes the
-file in the current working directory.
+- Linux produces `dist/SysScope`.
+- Native Windows produces `dist\SysScope.exe`.
+
+To generate both platform distributions, run the **build-distributions** GitHub
+Actions workflow from the Actions tab, or push a version tag such as `v1.0.0`.
+The native Linux and Windows runners produce:
+
+- `SysScope-linux-x86_64.tar.gz` containing the Linux executable.
+- `SysScope-windows-x86_64.zip` containing the standalone Windows executable.
+- `SysScope-Windows-Setup.exe`, a Windows installer built with Inno Setup.
+
+A version-tag run also publishes all three files to a GitHub Release. SysScope
+writes `config.json` beside the executable. During source development, it writes
+the file in the current working directory.
 
 See [goal.md](goal.md), [plan.md](plan.md), and [task.md](task.md) for the
 product definition and implementation traceability.
