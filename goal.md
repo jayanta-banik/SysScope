@@ -6,6 +6,11 @@ Deliver a lightweight native desktop monitoring widget that keeps the local
 clock and essential workstation resource usage visible without interrupting
 development, machine-learning, or general desktop workflows.
 
+## Audience
+
+SysScope is for an individual developer or workstation owner who wants compact,
+continuous local visibility without operating a monitoring service.
+
 ## Success Criteria
 
 - Runs as a frameless, draggable, resizable, always-on-top PySide6 widget on

@@ -41,3 +41,11 @@ def test_config_round_trip(tmp_path):
 
     assert store.load() == expected
 
+
+
+def test_config_store_accepts_string_path(tmp_path):
+    store = ConfigStore(str(tmp_path / "config.json"))
+
+    store.save(AppConfig())
+
+    assert store.path.exists()

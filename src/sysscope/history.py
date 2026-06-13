@@ -1,14 +1,10 @@
 from __future__ import annotations
 
 from collections import defaultdict, deque
-from dataclasses import dataclass, field
 
 from sysscope.models import MetricSnapshot
 
 
-@dataclass(slots=True)
-class HistorySeries:
-    values: deque[float]
 
 
 class MetricHistory:

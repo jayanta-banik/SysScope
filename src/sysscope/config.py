@@ -68,7 +68,7 @@ def default_config_path() -> Path:
 
 class ConfigStore:
     def __init__(self, path: Path | None = None) -> None:
-        self.path = path or default_config_path()
+        self.path = Path(path) if path is not None else default_config_path()
 
     def load(self) -> AppConfig:
         try:

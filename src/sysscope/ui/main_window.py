@@ -5,7 +5,7 @@ import platform
 from datetime import datetime
 
 import pyqtgraph as pg
-from PySide6.QtCore import QPoint, Qt, QTime, QTimer
+from PySide6.QtCore import QPoint, Qt, QTimer
 from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QMouseEvent, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
