@@ -17,6 +17,7 @@ class AppConfig:
     history_seconds: int = 60
     theme: str = "dark_futuristic_hud"
     metrics_source: str = "host"
+    font_scale_percent: int = 100
     window_width: int = 420
     window_height: int = 300
 
@@ -36,6 +37,7 @@ class AppConfig:
         int_ranges = {
             "refresh_interval_ms": (250, 10_000),
             "history_seconds": (10, 600),
+            "font_scale_percent": (80, 160),
             "window_width": (300, 3000),
             "window_height": (180, 2000),
         }

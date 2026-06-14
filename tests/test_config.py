@@ -17,6 +17,7 @@ def test_invalid_values_fall_back_independently(tmp_path):
                 "always_on_top": False,
                 "refresh_interval_ms": 2,
                 "history_seconds": 120,
+                "font_scale_percent": 999,
                 "theme": "unknown",
                 "metrics_source": "wsl:Ubuntu",
             }
@@ -29,6 +30,7 @@ def test_invalid_values_fall_back_independently(tmp_path):
     assert config.always_on_top is False
     assert config.refresh_interval_ms == 1000
     assert config.history_seconds == 120
+    assert config.font_scale_percent == 100
     assert config.theme == "dark_futuristic_hud"
     assert config.metrics_source == "wsl:Ubuntu"
 

@@ -6,7 +6,20 @@ from datetime import datetime
 
 import pyqtgraph as pg
 from PySide6.QtCore import QPoint, Qt, QTimer
-from PySide6.QtGui import QAction, QActionGroup, QColor, QIcon, QMouseEvent, QPixmap
+from PySide6.QtGui import (
+    QAction,
+    QActionGroup,
+    QBrush,
+    QColor,
+    QIcon,
+    QKeySequence,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPen,
+    QPixmap,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -30,6 +43,11 @@ from sysscope.history import MetricHistory
 from sysscope.models import GpuMetrics, MetricSnapshot
 from sysscope.timekeeping import TimeMode, Timekeeper
 from sysscope.worker import MetricsThread
+
+
+MIN_FONT_SCALE = 80
+MAX_FONT_SCALE = 160
+FONT_SCALE_STEP = 10
 
 
 STYLESHEET = """
@@ -58,6 +76,7 @@ QFrame#metricCard {
     border: 1px solid #174553;
     border-radius: 6px;
 }
+QFrame#metricCard QLabel { background: transparent; }
 QLabel#metricTitle {
     color: #32ddea;
     font-weight: 600;
@@ -68,6 +87,10 @@ QPushButton {
     border-radius: 4px;
     padding: 5px 10px;
 }
+QPushButton#menuButton {
+    font-weight: 700;
+    min-width: 30px;
+}
 QPushButton:hover { background: #174553; }
 QMenu {
     background: #0b1b25;
@@ -75,6 +98,15 @@ QMenu {
 }
 QMenu::item:selected { background: #174553; }
 """
+
+
+def build_stylesheet(scale_percent: int) -> str:
+    scale = scale_percent / 100
+    return (
+        STYLESHEET.replace("font-size: 12px;", f"font-size: {round(12 * scale)}px;")
+        .replace("font-size: 30px;", f"font-size: {round(30 * scale)}px;")
+        .replace("font-size: 10px;", f"font-size: {round(10 * scale)}px;")
+    )
 
 
 def format_bytes(value: int) -> str:
@@ -85,8 +117,6 @@ def format_bytes(value: int) -> str:
 def make_icon() -> QIcon:
     pixmap = QPixmap(32, 32)
     pixmap.fill(QColor("#071018"))
-    from PySide6.QtGui import QPainter, QPen
-
     painter = QPainter(pixmap)
     painter.setPen(QPen(QColor("#5cf5ff"), 3))
     painter.drawEllipse(5, 5, 22, 22)
@@ -108,6 +138,40 @@ class MetricCard(QFrame):
         self.value = QLabel("--")
         layout.addWidget(self.title)
         layout.addWidget(self.value)
+        self._series: tuple[float, ...] = ()
+
+    def set_series(self, values) -> None:
+        self._series = tuple(float(value) for value in values)
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        super().paintEvent(event)
+        if len(self._series) < 2:
+            return
+
+        bounds = self.rect().adjusted(1, 1, -1, -1)
+        width = max(1, bounds.width())
+        height = max(1, bounds.height())
+        step = width / (len(self._series) - 1)
+        path = QPainterPath()
+        for index, value in enumerate(self._series):
+            x = bounds.left() + (index * step)
+            y = bounds.bottom() - (max(0.0, min(100.0, value)) / 100 * height)
+            if index == 0:
+                path.moveTo(x, y)
+            else:
+                path.lineTo(x, y)
+
+        fill = QPainterPath(path)
+        fill.lineTo(bounds.right(), bounds.bottom())
+        fill.lineTo(bounds.left(), bounds.bottom())
+        fill.closeSubpath()
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillPath(fill, QBrush(QColor(18, 178, 194, 28)))
+        painter.setPen(QPen(QColor(50, 221, 234, 95), 1.5))
+        painter.drawPath(path)
 
 
 class TimerDialog(QDialog):
@@ -204,6 +268,7 @@ class MainWindow(QWidget):
         self.worker: MetricsThread | None = None
         self._quitting = False
         self._gpu_signature: tuple[tuple[int, str], ...] | None = None
+        self._font_shortcuts: list[QShortcut] = []
 
         flags = Qt.FramelessWindowHint | Qt.Tool
         if config.always_on_top:
@@ -212,13 +277,14 @@ class MainWindow(QWidget):
         self.setObjectName("hud")
         self.setMinimumSize(300, 180)
         self.resize(config.window_width, config.window_height)
-        self.setStyleSheet(STYLESHEET)
+        self.setStyleSheet(build_stylesheet(config.font_scale_percent))
         self.setWindowTitle("SysScope")
         self.setWindowIcon(make_icon())
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self._show_context_menu)
 
         self._build_ui()
+        self._build_shortcuts()
         self._build_tray()
         self._set_compact(config.compact_mode, persist=False)
 
@@ -242,6 +308,12 @@ class MainWindow(QWidget):
         time_box.addWidget(self.time_label)
         time_box.addWidget(self.source_label)
         header.addLayout(time_box, 1)
+
+        self.menu_button = QPushButton("Menu")
+        self.menu_button.setObjectName("menuButton")
+        self.menu_button.setToolTip("Open SysScope menu")
+        self.menu_button.clicked.connect(self._show_menu_from_button)
+        header.addWidget(self.menu_button, 0, Qt.AlignTop)
 
         self.session_controls = QWidget()
         controls = QHBoxLayout(self.session_controls)
@@ -311,6 +383,13 @@ class MainWindow(QWidget):
             self._show_from_tray()
 
     def _show_context_menu(self, position: QPoint) -> None:
+        self._create_menu().exec(self.mapToGlobal(position))
+
+    def _show_menu_from_button(self) -> None:
+        menu = self._create_menu()
+        menu.exec(self.menu_button.mapToGlobal(QPoint(0, self.menu_button.height())))
+
+    def _create_menu(self) -> QMenu:
         menu = QMenu(self)
         display_menu = menu.addMenu("Display")
         display_group = QActionGroup(display_menu)
@@ -352,10 +431,47 @@ class MainWindow(QWidget):
                     f"WSL: {distribution}",
                 )
 
+        zoom_menu = menu.addMenu("Font Size")
+        zoom_in_action = zoom_menu.addAction("Increase  Ctrl++")
+        zoom_in_action.setEnabled(self.config.font_scale_percent < MAX_FONT_SCALE)
+        zoom_in_action.triggered.connect(self._increase_font_scale)
+        zoom_out_action = zoom_menu.addAction("Decrease  Ctrl+-")
+        zoom_out_action.setEnabled(self.config.font_scale_percent > MIN_FONT_SCALE)
+        zoom_out_action.triggered.connect(self._decrease_font_scale)
+        zoom_menu.addSeparator()
+        scale_action = zoom_menu.addAction(f"{self.config.font_scale_percent}%")
+        scale_action.setEnabled(False)
+
         menu.addSeparator()
         exit_action = menu.addAction("Exit SysScope")
         exit_action.triggered.connect(self.exit_application)
-        menu.exec(self.mapToGlobal(position))
+        return menu
+
+    def _build_shortcuts(self) -> None:
+        for sequence in ("Ctrl++", "Ctrl+="):
+            shortcut = QShortcut(QKeySequence(sequence), self)
+            shortcut.setContext(Qt.WidgetWithChildrenShortcut)
+            shortcut.activated.connect(self._increase_font_scale)
+            self._font_shortcuts.append(shortcut)
+        shortcut = QShortcut(QKeySequence("Ctrl+-"), self)
+        shortcut.setContext(Qt.WidgetWithChildrenShortcut)
+        shortcut.activated.connect(self._decrease_font_scale)
+        self._font_shortcuts.append(shortcut)
+
+    def _increase_font_scale(self) -> None:
+        self._set_font_scale(self.config.font_scale_percent + FONT_SCALE_STEP)
+
+    def _decrease_font_scale(self) -> None:
+        self._set_font_scale(self.config.font_scale_percent - FONT_SCALE_STEP)
+
+    def _set_font_scale(self, scale_percent: int, persist: bool = True) -> None:
+        bounded = max(MIN_FONT_SCALE, min(MAX_FONT_SCALE, scale_percent))
+        if bounded == self.config.font_scale_percent:
+            return
+        self.config.font_scale_percent = bounded
+        self.setStyleSheet(build_stylesheet(bounded))
+        if persist:
+            self._save_config()
 
     def _add_source_action(
         self, menu: QMenu, group: QActionGroup, source_id: str, label: str
@@ -383,6 +499,10 @@ class MainWindow(QWidget):
         self.history = MetricHistory(
             self.config.history_seconds, self.config.refresh_interval_ms
         )
+        self.cpu_card.set_series(())
+        self.memory_card.set_series(())
+        for card in self.gpu_cards.values():
+            card.set_series(())
         self.source_label.setText(f"SOURCE: {source_id.upper()}")
         self.status_label.setText("Connecting...")
         self.worker = MetricsThread(source_id, self.config.refresh_interval_ms)
@@ -425,6 +545,12 @@ class MainWindow(QWidget):
                 f"{format_bytes(gpu.memory_total_bytes)}"
             )
         self.history.append(snapshot)
+        self.cpu_card.set_series(self.history.cpu)
+        self.memory_card.set_series(self.history.memory)
+        for gpu in snapshot.gpus:
+            self.gpu_cards[gpu.index].set_series(
+                self.history.gpu_utilization[gpu.index]
+            )
         self.graph_panel.ensure_gpus(snapshot.gpus)
         if not self.config.compact_mode:
             self.graph_panel.update_history(self.history)

@@ -57,9 +57,11 @@ python -m pip install -e ".[dev]"
 python -m sysscope
 ```
 
-Right-click the widget to change its display mode, start or control a
-stopwatch/timer, select a metrics source, or exit. Closing the widget hides it
-to the system tray.
+Use the **Menu** button beside the clock to change display mode, start or control
+a stopwatch/timer, select a metrics source, adjust font size, or exit. `Ctrl++`
+(or `Ctrl+=`) increases the font size and `Ctrl+-` decreases it between 80% and
+160%. Metric cards show their cached 60-second usage history as moving
+background graphs. Closing the widget hides it to the system tray.
 
 ## Tests
 
